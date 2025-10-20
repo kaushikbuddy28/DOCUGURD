@@ -1,0 +1,269 @@
+{
+  "entities": {
+    "Document": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Document",
+      "type": "object",
+      "description": "Represents a document uploaded by a user for forgery analysis.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Document entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Document)"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The date and time the document was uploaded.",
+          "format": "date-time"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The original file name of the uploaded document."
+        },
+        "fileType": {
+          "type": "string",
+          "description": "The type of file uploaded (e.g., image, PDF)."
+        },
+        "filePath": {
+          "type": "string",
+          "description": "The path to the stored document file."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "uploadDate",
+        "fileName",
+        "fileType",
+        "filePath"
+      ]
+    },
+    "AnalysisResult": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AnalysisResult",
+      "type": "object",
+      "description": "Represents the results of the forgery analysis performed on a document.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AnalysisResult entity."
+        },
+        "documentId": {
+          "type": "string",
+          "description": "Reference to Document. (Relationship: Document 1:1 AnalysisResult)"
+        },
+        "forgeryScore": {
+          "type": "number",
+          "description": "The fraud confidence score indicating the likelihood of forgery (0-100)."
+        },
+        "suspectAreas": {
+          "type": "array",
+          "description": "JSON array representing coordinates of suspect areas on the document.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reportSummary": {
+          "type": "string",
+          "description": "A brief summary indicating whether the document is likely genuine or forged."
+        },
+        "analysisDate": {
+          "type": "string",
+          "description": "The date and time the analysis was performed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "documentId",
+        "forgeryScore",
+        "reportSummary",
+        "analysisDate"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the DocuGuard application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "The date and time the user registered.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "registrationDate"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator of the DocuGuard application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Admin entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The administrator's email address.",
+          "format": "email"
+        },
+        "passcode": {
+          "type": "string",
+          "description": "The administrator's passcode for authentication."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "passcode"
+      ]
+    },
+    "WebsiteInfo": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WebsiteInfo",
+      "type": "object",
+      "description": "Represents website information for the 'what is this website' popup.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WebsiteInfo entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the website info content."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the website's purpose and functionality."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Only the user can read/write their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/documents/{documentId}",
+        "definition": {
+          "entityName": "Document",
+          "schema": {
+            "$ref": "#/backend/entities/Document"
+          },
+          "description": "Stores documents uploaded by a user. Only the user can read/write their own documents.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier of the document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/documents/{documentId}/analysis_results/{analysisResultId}",
+        "definition": {
+          "entityName": "AnalysisResult",
+          "schema": {
+            "$ref": "#/backend/entities/AnalysisResult"
+          },
+          "description": "Stores analysis results for a specific document. Only the user can read/write the analysis results of their own documents.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier of the document."
+            },
+            {
+              "name": "analysisResultId",
+              "description": "The unique identifier of the analysis result."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{adminId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Stores administrator credentials. Access restricted to admin role.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The unique identifier of the administrator."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/website_info/{websiteInfoId}",
+        "definition": {
+          "entityName": "WebsiteInfo",
+          "schema": {
+            "$ref": "#/backend/entities/WebsiteInfo"
+          },
+          "description": "Stores website information for the 'what is this website' popup. Publicly accessible.",
+          "params": [
+            {
+              "name": "websiteInfoId",
+              "description": "The unique identifier of the website information."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure Authorization Independence and support the required QAPs. User-owned documents and analysis results are nested under the user's document using path-based ownership (`/users/{userId}/documents/{documentId}`). This enables simple and secure security rules based on `request.auth.uid`. The AnalysisResult is stored as a subcollection to the document because of the 1:1 relationship and similar security concerns (only the owner can view). The Admin entity is stored in a dedicated collection `/admins/{adminId}`. Website info is stored in a top level collection `/website_info/{websiteInfoId}`. This allows for separation of concerns, and clear, readable rules."
+  }
+}
