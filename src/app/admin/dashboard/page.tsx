@@ -3,7 +3,7 @@
 import { useEffect, useState }from 'react';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,40 +12,60 @@ import { Button } from '@/components/ui/button';
 import { signOut } from 'firebase/auth';
 import { Loader2 }from 'lucide-react';
 
+// Define types for our data for better type safety
+interface UserData {
+  id: string;
+  email: string;
+  registrationDate?: string;
+}
+
+interface DocumentData {
+  id: string;
+  userId: string;
+  fileName: string;
+  fileType: string;
+  uploadDate?: { seconds: number; nanoseconds: number; } | Timestamp;
+}
+
+
 export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
   const auth = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // If auth state is loaded and there's no user, redirect to login.
     if (!isUserLoading && !user) {
       router.push('/admin/login');
     }
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
+    // Fetch data only if there is a user and firestore is initialized.
     if (user && firestore) {
       const fetchData = async () => {
         setIsLoading(true);
         try {
+          // Fetch all users
           const usersSnapshot = await getDocs(collection(firestore, 'users'));
-          setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+          setUsers(usersData);
 
-          // For simplicity, fetching all documents. In a real app, you might paginate
-          const allDocuments: any[] = [];
-          for (const u of usersSnapshot.docs) {
+          // Fetch all documents for all users
+          const allDocuments: DocumentData[] = [];
+          for (const u of usersData) {
             const docsSnapshot = await getDocs(collection(firestore, `users/${u.id}/documents`));
             docsSnapshot.forEach(doc => {
-              allDocuments.push({ id: doc.id, userId: u.id, ...doc.data() });
+              allDocuments.push({ id: doc.id, userId: u.id, ...doc.data() } as DocumentData);
             });
           }
           setDocuments(allDocuments);
         } catch (error) {
-          console.error("Error fetching data:", error);
+          console.error("Error fetching admin data:", error);
         } finally {
           setIsLoading(false);
         }
@@ -55,10 +75,13 @@ export default function AdminDashboard() {
   }, [user, firestore]);
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    router.push('/admin/login');
+    if (auth) {
+      await signOut(auth);
+      router.push('/admin/login');
+    }
   };
   
+  // Display a loading spinner while user auth or data fetching is in progress.
   if (isUserLoading || isLoading) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -70,9 +93,22 @@ export default function AdminDashboard() {
     );
   }
 
+  // If there's no user, we're likely about to redirect, so render nothing.
   if (!user) {
-    return null; // or a redirect component
+    return null;
   }
+
+  // Helper to format Firestore Timestamps or date strings
+  const formatDate = (date: any) => {
+    if (!date) return 'N/A';
+    if (typeof date === 'string') {
+        return new Date(date).toLocaleString();
+    }
+    if (date.seconds) {
+        return new Date(date.seconds * 1000).toLocaleString();
+    }
+    return 'Invalid Date';
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary/50">
@@ -104,7 +140,7 @@ export default function AdminDashboard() {
                         <TableRow key={u.id}>
                         <TableCell className="font-mono text-xs">{u.id}</TableCell>
                         <TableCell>{u.email}</TableCell>
-                        <TableCell>{u.registrationDate ? new Date(u.registrationDate).toLocaleDateString() : 'N/A'}</TableCell>
+                        <TableCell>{formatDate(u.registrationDate)}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
@@ -137,7 +173,7 @@ export default function AdminDashboard() {
                             <Badge variant="outline">{doc.fileType}</Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{doc.userId}</TableCell>
-                        <TableCell>{doc.uploadDate ? new Date(doc.uploadDate.seconds * 1000).toLocaleString() : 'N/A'}</TableCell>
+                        <TableCell>{formatDate(doc.uploadDate)}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>

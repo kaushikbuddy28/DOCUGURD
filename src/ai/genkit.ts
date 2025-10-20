@@ -5,6 +5,7 @@ import {googleAI} from '@genkit-ai/google-genai';
 
 // This is the main configuration object for Genkit.
 // It initializes Genkit and configures the plugins it will use.
+// Vercel will automatically use the `GEMINI_API_KEY` environment variable.
 export const ai = genkit({
   // The `plugins` array is where we tell Genkit which AI services to connect to.
   // In this case, we're using the Google AI plugin to access Gemini models.

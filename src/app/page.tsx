@@ -10,25 +10,35 @@ import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { InfoPopup } from '@/components/home/info-popup';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // This is the main component for the homepage.
 export default function Home() {
   const router = useRouter(); // Hook for programmatic navigation.
   const { toast } = useToast(); // Hook for showing toast notifications.
+  const { user } = useUser(); // Get the current user from Firebase.
+  const firestore = useFirestore(); // Get the Firestore instance.
+
   const [dragging, setDragging] = useState(false); // State to track if a file is being dragged over the dropzone.
   const [uploading, setUploading] = useState(false); // State to track if the file is currently being "uploaded".
   const [file, setFile] = useState<File | null>(null); // State to hold the selected file.
   const [isInfoPopupOpen, setInfoPopupOpen] = useState(true); // State for the info popup.
 
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const user = auth.currentUser;
 
   // This function handles changes to the file input (e.g., when a user selects a file).
   const handleFileChange = (selectedFile: File | null) => {
     if (selectedFile) {
+      // Check if the file type is supported.
+      const supportedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!supportedTypes.includes(selectedFile.type)) {
+         toast({
+          title: "Unsupported file type",
+          description: `Please upload a JPG, PNG, or PDF file.`,
+          variant: "destructive",
+        });
+        return;
+      }
       // Check if the file size exceeds the 10MB limit.
       if (selectedFile.size > 10 * 1024 * 1024) { 
         toast({
@@ -82,32 +92,38 @@ export default function Home() {
     }
     setUploading(true);
 
+    // Ensure we have a user and Firestore instance before proceeding.
     if (user && firestore) {
-      const docId = Date.now().toString();
+      const docId = `${user.uid}_${Date.now()}`;
       const userDocRef = doc(firestore, `users/${user.uid}/documents`, docId);
 
       try {
+        // Save metadata about the file to Firestore.
         await setDoc(userDocRef, {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
           uploadDate: serverTimestamp(),
         });
+        // Navigate to the analysis page for the newly created document record.
+        router.push(`/analysis/${docId}`);
       } catch (error) {
         console.error("Error saving document data:", error);
         toast({
           variant: "destructive",
           title: "Upload Failed",
-          description: "Could not save document information.",
+          description: "Could not save document information. Please try again.",
         });
         setUploading(false);
-        return;
       }
-      router.push(`/analysis/${docId}`);
     } else {
-        // Handle non-logged in user case, for now just proceed
-        const docId = Date.now().toString();
-        router.push(`/analysis/${docId}`);
+        // This case should ideally not happen with anonymous auth, but it's good practice to handle it.
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Could not identify user. Please refresh the page and try again.",
+        });
+        setUploading(false);
     }
     
   }, [file, router, toast, user, firestore]);
@@ -149,7 +165,7 @@ export default function Home() {
               id="file-upload"
               type="file"
               className="hidden" // The actual file input is hidden and triggered programmatically.
-              accept="image/*,application/pdf"
+              accept="image/jpeg,image/png,application/pdf"
               onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : null)}
               disabled={uploading}
             />
