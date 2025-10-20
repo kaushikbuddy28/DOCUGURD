@@ -1,4 +1,12 @@
-# Ignore documentation and other non-essential files from the build
+node_modules/
+.vscode/
+.DS_Store
+*.log
+uploads/
+.env
+.env.local
+firebase-debug.log
+*.zip
 README.md
 DEPLOYMENT.md
 docs/
