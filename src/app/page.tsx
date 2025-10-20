@@ -11,7 +11,8 @@ import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { InfoPopup } from '@/components/home/info-popup';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, serverTimestamp } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 // This is the main component for the homepage.
 export default function Home() {
@@ -96,26 +97,19 @@ export default function Home() {
     if (user && firestore) {
       const docId = `${user.uid}_${Date.now()}`;
       const userDocRef = doc(firestore, `users/${user.uid}/documents`, docId);
-
-      try {
-        // Save metadata about the file to Firestore.
-        await setDoc(userDocRef, {
+      const docData = {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
           uploadDate: serverTimestamp(),
-        });
-        // Navigate to the analysis page for the newly created document record.
-        router.push(`/analysis/${docId}`);
-      } catch (error) {
-        console.error("Error saving document data:", error);
-        toast({
-          variant: "destructive",
-          title: "Upload Failed",
-          description: "Could not save document information. Please try again.",
-        });
-        setUploading(false);
-      }
+      };
+      
+      // Use the non-blocking update function. It handles its own errors.
+      setDocumentNonBlocking(userDocRef, docData, { merge: true });
+
+      // Navigate immediately. The write will happen in the background.
+      router.push(`/analysis/${docId}`);
+
     } else {
         // This case should ideally not happen with anonymous auth, but it's good practice to handle it.
         toast({

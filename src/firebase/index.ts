@@ -4,7 +4,8 @@
 import { firebaseConfig as hardcodedConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
@@ -36,13 +37,14 @@ export function initializeFirebase() {
           // User is signed in.
           // This could be an anonymous user or a logged-in admin.
           const userRef = doc(firestore, "users", user.uid);
-          // We use setDoc with merge:true to create or update the user document.
-          // This way, we can track all users (anonymous or not) and their creation date.
-          // If an anonymous user later signs in as an admin, their record will be updated.
-          await setDoc(userRef, {
+          const userData = {
               email: user.email || "anonymous",
               registrationDate: user.metadata.creationTime || new Date().toISOString(),
-          }, { merge: true });
+          };
+          // We use non-blocking setDoc with merge:true to create or update the user document.
+          // This way, we can track all users (anonymous or not) and their creation date.
+          // If an anonymous user later signs in as an admin, their record will be updated.
+          setDocumentNonBlocking(userRef, userData, { merge: true });
       } else {
           // User is signed out. We automatically sign them in anonymously.
           // This ensures that every visitor has a UID and can have data associated with them.

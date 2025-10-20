@@ -15,7 +15,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertCircle, FileText, Info } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 // Find the placeholder document image from the JSON data.
 const documentImage = PlaceHolderImages.find(img => img.id === 'document-1');
@@ -75,16 +76,18 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (user && firestore) {
             const analysisId = `analysis_${Date.now()}`;
             const analysisRef = doc(firestore, `users/${user.uid}/documents/${params.id}/analysis_results`, analysisId);
-            await setDoc(analysisRef, {
+            const analysisData = {
                 forgeryScore: score,
                 reportSummary: summaryRes.summary,
                 analysisDate: new Date().toISOString(),
                 suspectAreas: JSON.stringify(suspectAreas.map(a => `top: ${a.top}, left: ${a.left}`)),
-            });
+            };
+            // Use the non-blocking update function. It handles its own errors.
+            setDocumentNonBlocking(analysisRef, analysisData, { merge: true });
         }
 
       } catch (error) {
-        console.error("AI analysis or data saving failed:", error);
+        console.error("AI analysis failed:", error);
         // Set error messages if any of the AI calls fail.
         setSummary("An error occurred while generating the analysis summary.");
         setReport("An error occurred while generating the full report.");
