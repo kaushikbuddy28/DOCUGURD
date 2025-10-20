@@ -1,6 +1,7 @@
 
 "use client";
 
+// Import necessary hooks and components from React, Next.js, and local files.
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { UploadCloud, FileCheck2, Loader2 } from 'lucide-react';
@@ -9,16 +10,19 @@ import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 
+// This is the main component for the homepage.
 export default function Home() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const router = useRouter(); // Hook for programmatic navigation.
+  const { toast } = useToast(); // Hook for showing toast notifications.
+  const [dragging, setDragging] = useState(false); // State to track if a file is being dragged over the dropzone.
+  const [uploading, setUploading] = useState(false); // State to track if the file is currently being "uploaded".
+  const [file, setFile] = useState<File | null>(null); // State to hold the selected file.
 
+  // This function handles changes to the file input (e.g., when a user selects a file).
   const handleFileChange = (selectedFile: File | null) => {
     if (selectedFile) {
-      if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+      // Check if the file size exceeds the 10MB limit.
+      if (selectedFile.size > 10 * 1024 * 1024) { 
         toast({
           title: "File too large",
           description: "Please upload a file smaller than 10MB.",
@@ -26,10 +30,11 @@ export default function Home() {
         });
         return;
       }
-      setFile(selectedFile);
+      setFile(selectedFile); // If the file is valid, store it in the state.
     }
   };
 
+  // The following four functions handle the drag-and-drop functionality for the file upload area.
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -52,11 +57,12 @@ export default function Home() {
     e.stopPropagation();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileChange(e.dataTransfer.files[0]);
+      handleFileChange(e.dataTransfer.files[0]); // Handle the dropped file.
       e.dataTransfer.clearData();
     }
   };
 
+  // This function is called when the "Analyse Document" button is clicked.
   const handleAnalyse = useCallback(() => {
     if (!file) {
       toast({
@@ -66,14 +72,15 @@ export default function Home() {
       });
       return;
     }
-    setUploading(true);
-    // Simulate upload and processing time
+    setUploading(true); // Set the uploading state to true to show a loader.
+    // Simulate an upload and processing delay.
     setTimeout(() => {
-      const docId = Date.now().toString(); // Use timestamp as a unique ID for simulation
-      router.push(`/analysis/${docId}`);
+      const docId = Date.now().toString(); // Create a unique ID for the analysis (simulation).
+      router.push(`/analysis/${docId}`); // Navigate to the analysis page.
     }, 1500);
   }, [file, router, toast]);
 
+  // `useMemo` is used to dynamically calculate the background color of the dropzone based on its state.
   const dropzoneBg = useMemo(() => {
     if (dragging) return 'bg-accent/60';
     if (file) return 'bg-accent/30';
@@ -92,6 +99,7 @@ export default function Home() {
             Upload a document to instantly check for signs of forgery using our AI-powered analysis tool.
           </p>
 
+          {/* The file dropzone area */}
           <div
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -107,19 +115,21 @@ export default function Home() {
             <input
               id="file-upload"
               type="file"
-              className="hidden"
+              className="hidden" // The actual file input is hidden and triggered programmatically.
               accept="image/*,application/pdf"
               onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : null)}
               disabled={uploading}
             />
             <div className="flex flex-col items-center justify-center space-y-4 text-foreground">
               {file ? (
+                // Displayed when a file has been selected.
                 <>
                   <FileCheck2 className="w-16 h-16 text-primary" />
                   <p className="font-medium text-lg">{file.name}</p>
                   <p className="text-sm text-muted-foreground">Ready to be analysed</p>
                 </>
               ) : (
+                // Displayed when no file is selected.
                 <>
                   <UploadCloud className="w-16 h-16 text-muted-foreground" />
                   <p className="font-medium text-lg">

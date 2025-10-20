@@ -1,0 +1,11 @@
+# Project Dependencies
+
+This is a Next.js (JavaScript/TypeScript) project, not a Python project. Dependencies are managed in the `package.json` file.
+
+To install the necessary packages, please run the following command in your terminal from the project's root directory:
+
+```bash
+npm install
+```
+
+This will download and install all the libraries and tools listed under `dependencies` and `devDependencies` in the `package.json` file.
