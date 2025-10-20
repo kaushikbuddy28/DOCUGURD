@@ -14,6 +14,8 @@ import { summarizeDocumentFindings } from '@/ai/flows/summarize-document-finding
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertCircle, FileText, Info } from 'lucide-react';
+import { useAuth, useFirestore } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 // Find the placeholder document image from the JSON data.
 const documentImage = PlaceHolderImages.find(img => img.id === 'document-1');
@@ -27,13 +29,17 @@ const suspectAreas = [
 ];
 
 // This is the main component for the analysis results page.
-export default function AnalysisPage() {
+export default function AnalysisPage({ params }: { params: { id: string } }) {
   // State variables to hold the analysis results.
   const [confidenceScore, setConfidenceScore] = useState<number | null>(null);
   const [summary, setSummary] = useState<string>('');
   const [report, setReport] = useState<string>('');
   const [explanation, setExplanation] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true); // State to manage loading UI.
+
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const user = auth.currentUser;
 
   // `useEffect` hook runs once when the component mounts to perform the analysis.
   useEffect(() => {
@@ -64,8 +70,21 @@ export default function AnalysisPage() {
         setSummary(summaryRes.summary);
         setReport(reportRes.report);
         setExplanation(explanationRes.explanation);
+
+        // Save analysis results to Firestore
+        if (user && firestore) {
+            const analysisId = `analysis_${Date.now()}`;
+            const analysisRef = doc(firestore, `users/${user.uid}/documents/${params.id}/analysis_results`, analysisId);
+            await setDoc(analysisRef, {
+                forgeryScore: score,
+                reportSummary: summaryRes.summary,
+                analysisDate: new Date().toISOString(),
+                suspectAreas: JSON.stringify(suspectAreas.map(a => `top: ${a.top}, left: ${a.left}`)),
+            });
+        }
+
       } catch (error) {
-        console.error("AI analysis failed:", error);
+        console.error("AI analysis or data saving failed:", error);
         // Set error messages if any of the AI calls fail.
         setSummary("An error occurred while generating the analysis summary.");
         setReport("An error occurred while generating the full report.");
@@ -77,7 +96,7 @@ export default function AnalysisPage() {
     };
 
     runAnalysis();
-  }, []); // The empty dependency array ensures this effect runs only once.
+  }, [params.id, user, firestore]); // The dependency array ensures this effect runs when params, user or firestore change.
 
   // This function determines the color of the score display based on the score value.
   const getScoreStyling = (score: number | null) => {

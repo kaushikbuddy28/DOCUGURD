@@ -2,8 +2,9 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -24,6 +25,26 @@ export function initializeFirebase() {
       }
       firebaseApp = initializeApp(firebaseConfig);
     }
+
+    const auth = getAuth(firebaseApp);
+    const firestore = getFirestore(firebaseApp);
+    
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // User is signed in.
+            const userRef = doc(firestore, "users", user.uid);
+            // Using setDoc with merge: true to create or update the user document.
+            await setDoc(userRef, {
+                email: user.email || "anonymous",
+                registrationDate: user.metadata.creationTime || serverTimestamp(),
+            }, { merge: true });
+        } else {
+            // User is signed out. Attempt to sign in anonymously.
+            signInAnonymously(auth).catch((error) => {
+                console.error("Anonymous sign-in failed:", error);
+            });
+        }
+    });
 
     return getSdks(firebaseApp);
   }

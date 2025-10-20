@@ -2,13 +2,16 @@
 "use client";
 
 // Import necessary hooks and components from React, Next.js, and local files.
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { UploadCloud, FileCheck2, Loader2 } from 'lucide-react';
+import { UploadCloud, FileCheck2, Loader2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
+import { InfoPopup } from '@/components/home/info-popup';
+import { useAuth, useFirestore } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // This is the main component for the homepage.
 export default function Home() {
@@ -17,6 +20,11 @@ export default function Home() {
   const [dragging, setDragging] = useState(false); // State to track if a file is being dragged over the dropzone.
   const [uploading, setUploading] = useState(false); // State to track if the file is currently being "uploaded".
   const [file, setFile] = useState<File | null>(null); // State to hold the selected file.
+  const [isInfoPopupOpen, setInfoPopupOpen] = useState(true); // State for the info popup.
+
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const user = auth.currentUser;
 
   // This function handles changes to the file input (e.g., when a user selects a file).
   const handleFileChange = (selectedFile: File | null) => {
@@ -63,7 +71,7 @@ export default function Home() {
   };
 
   // This function is called when the "Analyse Document" button is clicked.
-  const handleAnalyse = useCallback(() => {
+  const handleAnalyse = useCallback(async () => {
     if (!file) {
       toast({
         title: "No file selected",
@@ -72,13 +80,37 @@ export default function Home() {
       });
       return;
     }
-    setUploading(true); // Set the uploading state to true to show a loader.
-    // Simulate an upload and processing delay.
-    setTimeout(() => {
-      const docId = Date.now().toString(); // Create a unique ID for the analysis (simulation).
-      router.push(`/analysis/${docId}`); // Navigate to the analysis page.
-    }, 1500);
-  }, [file, router, toast]);
+    setUploading(true);
+
+    if (user && firestore) {
+      const docId = Date.now().toString();
+      const userDocRef = doc(firestore, `users/${user.uid}/documents`, docId);
+
+      try {
+        await setDoc(userDocRef, {
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          uploadDate: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error("Error saving document data:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "Could not save document information.",
+        });
+        setUploading(false);
+        return;
+      }
+      router.push(`/analysis/${docId}`);
+    } else {
+        // Handle non-logged in user case, for now just proceed
+        const docId = Date.now().toString();
+        router.push(`/analysis/${docId}`);
+    }
+    
+  }, [file, router, toast, user, firestore]);
 
   // `useMemo` is used to dynamically calculate the background color of the dropzone based on its state.
   const dropzoneBg = useMemo(() => {
@@ -89,6 +121,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
+       <InfoPopup open={isInfoPopupOpen} onOpenChange={setInfoPopupOpen} />
       <Header />
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-2xl text-center">
@@ -156,7 +189,10 @@ export default function Home() {
         </div>
       </main>
       <footer className="text-center p-4 text-sm text-muted-foreground">
-        © {new Date().getFullYear()} DocuGuard. All rights reserved.
+        <Button variant="link" onClick={() => setInfoPopupOpen(true)} className="gap-2">
+            <Info className="h-4 w-4" /> What is DocuGuard?
+        </Button>
+        <div>© {new Date().getFullYear()} DocuGuard. All rights reserved.</div>
       </footer>
     </div>
   );
