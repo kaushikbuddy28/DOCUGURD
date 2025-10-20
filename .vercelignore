@@ -1,0 +1,4 @@
+# Ignore documentation and other non-essential files from the build
+README.md
+DEPLOYMENT.md
+docs/
